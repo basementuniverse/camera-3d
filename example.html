@@ -1,0 +1,148 @@
+<style>
+
+canvas {
+  width: 800px;
+  height: 800px;
+  border: 2px solid black;
+  margin: 2em;
+}
+
+</style>
+<canvas></canvas>
+<script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+<script src="build/index.js"></script>
+<script>
+
+const options = {
+  cameraOrbit: true,
+  cameraOrbitRadius: 6,
+  cameraOrbitHeight: 5,
+  cameraOrbitSpeed: 0.01,
+  manualPosition: { x: 0, y: 0, z: 0 },
+  targetPosition: { x: 0, y: 0, z: 0 },
+};
+
+const gui = new dat.GUI();
+gui.add(options, 'cameraOrbit').name('Orbit Enabled');
+gui.add(options, 'cameraOrbitRadius', 0, 100).name('Orbit Radius');
+gui.add(options, 'cameraOrbitHeight', 0, 100).name('Orbit Height');
+gui.add(options, 'cameraOrbitSpeed', 0, 0.1).name('Orbit Speed');
+const manualPositionFolder = gui.addFolder('Manual Position');
+manualPositionFolder.add(options.manualPosition, 'x', -100, 100).name('X');
+manualPositionFolder.add(options.manualPosition, 'y', -100, 100).name('Y');
+manualPositionFolder.add(options.manualPosition, 'z', -100, 100).name('Z');
+manualPositionFolder.open();
+const targetPositionFolder = gui.addFolder('Target Position');
+targetPositionFolder.add(options.targetPosition, 'x', -100, 100).name('X');
+targetPositionFolder.add(options.targetPosition, 'y', -100, 100).name('Y');
+targetPositionFolder.add(options.targetPosition, 'z', -100, 100).name('Z');
+targetPositionFolder.open();
+
+const canvas = document.querySelector('canvas');
+const context = canvas.getContext('2d');
+
+canvas.width = 800;
+canvas.height = 800;
+
+const camera = new Camera3d(
+  {
+    x: options.cameraOrbitRadius,
+    y: options.cameraOrbitHeight,
+    z: options.cameraOrbitRadius,
+  },
+  options.targetPosition,
+  {
+    aspect: canvas.width / canvas.height,
+  }
+);
+
+gui.add(camera, 'mode', ['perspective', 'orthographic']).name('Mode');
+gui.add(camera, 'fov', 0.001, Math.PI).name('FOV');
+const cameraUpFolder = gui.addFolder('Up-vector');
+cameraUpFolder.add(camera.up, 'x', -1, 1).name('X');
+cameraUpFolder.add(camera.up, 'y', -1, 1).name('Y');
+cameraUpFolder.add(camera.up, 'z', -1, 1).name('Z');
+cameraUpFolder.open();
+gui.add(camera, 'aspect', 0.1, 2).name('Aspect');
+gui.add(camera, 'near', 0.1, 100).name('Near');
+gui.add(camera, 'far', 0.1, 100).name('Far');
+
+const cubeVertices = [
+  { x: -1, y: -1, z: -1 },
+  { x:  1, y: -1, z: -1 },
+  { x:  1, y: -1, z:  1 },
+  { x: -1, y: -1, z:  1 },
+  { x: -1, y:  1, z: -1 },
+  { x:  1, y:  1, z: -1 },
+  { x:  1, y:  1, z:  1 },
+  { x: -1, y:  1, z:  1 },
+];
+
+const cubeEdges = [
+  [0, 1], [1, 2], [2, 3], [3, 0], // Back face
+  [4, 5], [5, 6], [6, 7], [7, 4], // Front face
+  [0, 4], [1, 5], [2, 6], [3, 7], // Connecting edges
+];
+
+let angle = 0;
+
+function initialise() {
+  console.log('Camera initialized:', camera);
+  loop();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function update() {
+  if (options.cameraOrbit) {
+    angle += options.cameraOrbitSpeed;
+    camera.position = {
+      x: options.cameraOrbitRadius * Math.cos(angle),
+      y: options.cameraOrbitHeight,
+      z: options.cameraOrbitRadius * Math.sin(angle),
+    };
+  } else {
+    camera.position = options.manualPosition;
+  }
+  camera.target = options.targetPosition;
+}
+
+function draw() {
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Project vertices
+  const screen = { x: canvas.width, y: canvas.height };
+  const projectedVertices = cubeVertices.map(v => camera.project(v, screen));
+
+  // Draw cube edges
+  context.strokeStyle = 'black';
+  context.lineWidth = 2;
+  context.beginPath();
+  cubeEdges.forEach(([start, end]) => {
+    const p1 = projectedVertices[start];
+    const p2 = projectedVertices[end];
+    if (p1 && p2) {
+      context.moveTo(p1.x, p1.y);
+      context.lineTo(p2.x, p2.y);
+    }
+  });
+  context.stroke();
+
+  // Draw vertices as dots
+  context.fillStyle = 'red';
+  projectedVertices.forEach(p => {
+    if (p) {
+      context.beginPath();
+      context.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      context.fill();
+    }
+  });
+}
+
+initialise();
+
+</script>
