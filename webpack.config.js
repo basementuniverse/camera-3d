@@ -24,7 +24,9 @@ module.exports = {
     extensions: ['.tsx', '.ts', '.js'],
   },
   output: {
+    library: 'Camera3d',
     libraryTarget: 'umd',
+    libraryExport: 'default',
     publicPath: '/build/',
     filename: 'index.js',
     path: path.resolve(__dirname, 'build'),

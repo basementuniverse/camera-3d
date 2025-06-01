@@ -8,7 +8,7 @@ export type Camera3dOptions = {
     near: number;
     far: number;
 };
-export declare class Camera3d {
+export default class Camera3d {
     position: vec3;
     target: vec3;
     private static readonly DEFAULT_OPTIONS;

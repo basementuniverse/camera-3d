@@ -11,7 +11,7 @@ export type Camera3dOptions = {
   far: number;
 };
 
-export class Camera3d {
+export default class Camera3d {
   private static readonly DEFAULT_OPTIONS: Camera3dOptions = {
     mode: 'perspective',
     up: vec3(0, 1, 0),
