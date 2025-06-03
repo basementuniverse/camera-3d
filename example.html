@@ -100,15 +100,15 @@ function loop() {
 function update() {
   if (options.cameraOrbit) {
     angle += options.cameraOrbitSpeed;
-    camera.position = {
+    camera.positionImmediate = {
       x: options.cameraOrbitRadius * Math.cos(angle),
       y: options.cameraOrbitHeight,
       z: options.cameraOrbitRadius * Math.sin(angle),
     };
   } else {
-    camera.position = options.manualPosition;
+    camera.positionImmediate = options.manualPosition;
   }
-  camera.target = options.targetPosition;
+  camera.targetImmediate = options.targetPosition;
 }
 
 function draw() {
