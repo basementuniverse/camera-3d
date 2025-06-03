@@ -9,6 +9,8 @@ export type Camera3dOptions = {
   aspect: number;
   near: number;
   far: number;
+  positionEaseAmount?: number;
+  targetEaseAmount?: number;
 };
 
 export default class Camera3d {
@@ -19,6 +21,8 @@ export default class Camera3d {
     aspect: 1,
     near: 0.1,
     far: 1000,
+    positionEaseAmount: 0.1,
+    targetEaseAmount: 0.1,
   };
 
   public mode: Camera3dMode;
@@ -28,9 +32,18 @@ export default class Camera3d {
   public near: number;
   public far: number;
 
+  private _actualPosition: vec3;
+  private _targetPosition: vec3;
+
+  private _actualTarget: vec3;
+  private _targetTarget: vec3;
+
+  private positionEaseAmount: number;
+  private targetEaseAmount: number;
+
   constructor(
-    public position: vec3,
-    public target: vec3,
+    position: vec3,
+    target: vec3,
     options: Partial<Camera3dOptions> = {}
   ) {
     const actualOptions = Object.assign({}, Camera3d.DEFAULT_OPTIONS, options);
@@ -40,10 +53,74 @@ export default class Camera3d {
     this.aspect = actualOptions.aspect;
     this.near = actualOptions.near;
     this.far = actualOptions.far;
+
+    this.positionEaseAmount = actualOptions.positionEaseAmount!;
+    this.targetEaseAmount = actualOptions.targetEaseAmount!;
+
+    this._actualPosition = position;
+    this._targetPosition = position;
+    this._actualTarget = target;
+    this._targetTarget = target;
+  }
+
+  public get position(): vec3 {
+    return this._targetPosition;
+  }
+
+  public set position(value: vec3) {
+    this._targetPosition = value;
+  }
+
+  public set positionImmediate(value: vec3) {
+    this._actualPosition = value;
+    this._targetPosition = value;
+  }
+
+  public get actualPosition(): vec3 {
+    return this._actualPosition;
+  }
+
+  public get target(): vec3 {
+    return this._targetTarget;
+  }
+
+  public set target(value: vec3) {
+    this._targetTarget = value;
+  }
+
+  public set targetImmediate(value: vec3) {
+    this._actualTarget = value;
+    this._targetTarget = value;
+  }
+
+  public get actualTarget(): vec3 {
+    return this._actualTarget;
+  }
+
+  /**
+   * Update the camera
+   */
+  public update() {
+    this._actualPosition = vec3.add(
+      this._targetPosition,
+      vec3.mul(
+        vec3.sub(this._actualPosition, this._targetPosition),
+        this.positionEaseAmount
+      )
+    );
+    this._actualTarget = vec3.add(
+      this._targetTarget,
+      vec3.mul(
+        vec3.sub(this._actualTarget, this._targetTarget),
+        this.targetEaseAmount
+      )
+    );
   }
 
   public getViewMatrix(): mat {
-    const forward = vec3.nor(vec3.sub(this.target, this.position));
+    const forward = vec3.nor(
+      vec3.sub(this._actualTarget, this._actualPosition)
+    );
     const right = vec3.nor(vec3.cross(this.up, forward));
     const up = vec3.nor(vec3.cross(right, forward));
 
@@ -54,9 +131,9 @@ export default class Camera3d {
       0, 0, 0, 1,
     ]);
     const translation = mat(4, 4, [
-      1, 0, 0, -this.position.x,
-      0, 1, 0, -this.position.y,
-      0, 0, 1, -this.position.z,
+      1, 0, 0, -this._actualPosition.x,
+      0, 1, 0, -this._actualPosition.y,
+      0, 0, 1, -this._actualPosition.z,
       0, 0, 0, 1,
     ]);
 

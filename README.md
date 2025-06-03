@@ -52,3 +52,32 @@ const orthographicProjectionMatrix = camera.getOrthographicProjectionMatrix();
 ```
 
 The camera uses `mat`, `vec2` and `vec3` types from `@basementuniverse/vec`.
+
+## Easing
+
+For easing to work correctly, we need to update the camera every frame:
+
+```ts
+class Game {
+  // ...
+
+  update() {
+    // Update the camera to apply easing
+    camera.update();
+  }
+
+  // ...
+}
+```
+
+Move the camera by setting `camera.position`.
+
+Get the camera's current "real" position (after easing) by reading `camera.actualPosition`.
+
+Snap the camera to a new position (without easing) by setting `camera.positionImmediate`.
+
+Set the camera's target position by setting `camera.target`.
+
+Get the camera's current "real" target position (after easing) by reading `camera.actualTarget`.
+
+Snap the camera's target position (without easing) by setting `camera.targetImmediate`.
