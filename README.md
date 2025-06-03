@@ -13,7 +13,7 @@ npm install @basementuniverse/camera-3d
 Create a camera:
 
 ```ts
-import Camera from '@basementuniverse/camera-3d';
+import Camera3d from '@basementuniverse/camera-3d';
 
 const camera = new Camera3d(
   // Initial position
