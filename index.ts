@@ -121,13 +121,13 @@ export default class Camera3d {
     const forward = vec3.nor(
       vec3.sub(this._actualTarget, this._actualPosition)
     );
-    const right = vec3.nor(vec3.cross(this.up, forward));
-    const up = vec3.nor(vec3.cross(right, forward));
+    const right = vec3.nor(vec3.cross(forward, this.up));
+    const up = vec3.cross(right, forward);
 
     const rotation = mat(4, 4, [
       right.x, right.y, right.z, 0,
       up.x, up.y, up.z, 0,
-      forward.x, forward.y, forward.z, 0,
+      -forward.x, -forward.y, -forward.z, 0,
       0, 0, 0, 1,
     ]);
     const translation = mat(4, 4, [
