@@ -17,7 +17,7 @@ export default class Camera3d {
   private static readonly DEFAULT_OPTIONS: Camera3dOptions = {
     mode: 'perspective',
     up: vec3(0, 1, 0),
-    fov: Math.PI / 4,
+    fov: Math.PI / 2,
     aspect: 1,
     near: 0.1,
     far: 1000,
@@ -53,7 +53,6 @@ export default class Camera3d {
     this.aspect = actualOptions.aspect;
     this.near = actualOptions.near;
     this.far = actualOptions.far;
-
     this.positionEaseAmount = actualOptions.positionEaseAmount!;
     this.targetEaseAmount = actualOptions.targetEaseAmount!;
 
@@ -117,6 +116,11 @@ export default class Camera3d {
     );
   }
 
+  /**
+   * Get the view matrix for the camera
+   *
+   * The view matrix transforms world coordinates into camera coordinates
+   */
   public getViewMatrix(): mat {
     const forward = vec3.nor(
       vec3.sub(this._actualTarget, this._actualPosition)
@@ -145,6 +149,9 @@ export default class Camera3d {
     return viewMatrix;
   }
 
+  /**
+   * Get a perspective projection matrix for the camera
+   */
   public getPerspectiveProjectionMatrix(): mat {
     const f = 1.0 / Math.tan(this.fov / 2);
     const nf = 1 / (this.near - this.far);
@@ -157,6 +164,9 @@ export default class Camera3d {
     ]);
   }
 
+  /**
+   * Get an orthographic projection matrix for the camera
+   */
   public getOrthographicProjectionMatrix(): mat {
     const l = -this.aspect * this.fov;
     const r = this.aspect * this.fov;
@@ -173,7 +183,13 @@ export default class Camera3d {
     ]);
   }
 
-  public project(v: vec3, screen: vec2): vec2 | null {
+  /**
+   * Project a 3D point into 2D screen coordinates
+   * @param v The 3D point to project
+   * @param screenSize The size of the screen in pixels
+   * @returns The projected 2D coordinates, or null if projection fails
+   */
+  public project(v: vec3, screenSize: vec2): vec2 | null {
     const viewMatrix = this.getViewMatrix();
     let projectionMatrix: mat;
     switch (this.mode) {
@@ -206,8 +222,118 @@ export default class Camera3d {
     );
 
     return vec2(
-      (ndc.x * 0.5 + 0.5) * screen.x,
-      (1 - (ndc.y * 0.5 + 0.5)) * screen.y
+      (ndc.x * 0.5 + 0.5) * screenSize.x,
+      (1 - (ndc.y * 0.5 + 0.5)) * screenSize.y
     );
+  }
+
+  /**
+   * Convert a screen position to a world position
+   * @param screenPosition The 2D screen coordinates to convert
+   * @param screenSize The size of the screen in pixels
+   * @param depth The depth (distance from the camera) to use for conversion
+   * @returns The corresponding 3D world coordinates, or null if conversion fails
+   */
+  public screenToWorld(
+    screenPosition: vec2,
+    screenSize: vec2,
+    depth?: number
+  ): vec3 | null {
+    // If depth is not provided, use the near plane
+    if (depth === undefined) {
+      depth = this.near;
+    }
+
+    // Convert screen position to normalized device coordinates (NDC)
+    const ndc = vec2(
+      1 - (screenPosition.x / screenSize.x) * 2,
+      1 - (screenPosition.y / screenSize.y) * 2
+    );
+
+    // Transform NDC from view space to clip space
+    const viewMatrix = this.getViewMatrix();
+    let projectionMatrix: mat;
+    switch (this.mode) {
+      case 'perspective':
+        projectionMatrix = this.getPerspectiveProjectionMatrix();
+        break;
+      case 'orthographic':
+        projectionMatrix = this.getOrthographicProjectionMatrix();
+        break;
+    }
+    const invProjectionMatrix = mat.inv(projectionMatrix);
+    if (!invProjectionMatrix) {
+      return null;
+    }
+    const invViewMatrix = mat.inv(viewMatrix);
+    if (!invViewMatrix) {
+      return null;
+    }
+    let clipPos: vec3 = vec3();
+    switch (this.mode) {
+      case 'perspective':
+        // For perspective projection, we need to calculate the clip space
+        // position and scale by tan(fov/2) to account for the field of view
+        const tanHalfFov = Math.tan(this.fov / 2);
+        clipPos = vec3(
+          ndc.x * depth * tanHalfFov * this.aspect,
+          ndc.y * depth * tanHalfFov,
+          depth
+        );
+        break;
+      case 'orthographic':
+        // For orthographic projection, we can directly use the depth value
+        clipPos = vec3(
+          ndc.x * (this.far - this.near) / 2,
+          ndc.y * (this.far - this.near) / 2,
+          (this.far + this.near) / 2 + depth
+        );
+        break;
+    }
+
+    // Transform clip space coordinates to world space
+    const worldPos = mat.mulv(invViewMatrix, [...vec3.components(clipPos), 1]);
+    if (!worldPos) {
+      return null;
+    }
+
+    return vec3(
+      worldPos[0] / worldPos[3],
+      worldPos[1] / worldPos[3],
+      worldPos[2] / worldPos[3]
+    );
+  }
+
+  /**
+   * Cast a ray from the camera through a screen position
+   * @param screenPosition The 2D screen coordinates to cast the ray from
+   * @param screenSize The size of the screen in pixels
+   * @returns A ray with origin and direction, or null if raycasting fails
+   */
+  public raycast(
+    screenPosition: vec2,
+    screenSize: vec2
+  ): { origin: vec3; direction: vec3 } | null {
+    const nearPlanePoint = this.screenToWorld(
+      screenPosition,
+      screenSize,
+      this.near
+    );
+    const farPlanePoint = this.screenToWorld(
+      screenPosition,
+      screenSize,
+      this.far
+    );
+    if (!nearPlanePoint || !farPlanePoint) {
+      return null;
+    }
+
+    const direction = vec3.nor(
+      vec3.sub(farPlanePoint, nearPlanePoint)
+    );
+    return {
+      origin: this._actualPosition,
+      direction: direction,
+    };
   }
 }

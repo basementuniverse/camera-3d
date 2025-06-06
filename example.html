@@ -14,12 +14,13 @@ canvas {
 <script>
 
 const options = {
-  cameraOrbit: true,
+  cameraOrbit: false,
   cameraOrbitRadius: 6,
   cameraOrbitHeight: 5,
   cameraOrbitSpeed: 0.01,
-  manualPosition: { x: 0, y: 0, z: 0 },
+  manualPosition: { x: 0, y: 10, z: 0.005 },
   targetPosition: { x: 0, y: 0, z: 0 },
+  screenToWorldDepth: 10,
 };
 
 const gui = new dat.GUI();
@@ -65,7 +66,8 @@ cameraUpFolder.add(camera.up, 'z', -1, 1).name('Z');
 cameraUpFolder.open();
 gui.add(camera, 'aspect', 0.1, 2).name('Aspect');
 gui.add(camera, 'near', 0.1, 100).name('Near');
-gui.add(camera, 'far', 0.1, 100).name('Far');
+gui.add(camera, 'far', 0.1, 1000).name('Far');
+gui.add(options, 'screenToWorldDepth', 0.1, 100).name('ScreenToWorld Depth');
 
 const cubeVertices = [
   { x: -1, y: -1, z: -1 },
@@ -84,7 +86,20 @@ const cubeEdges = [
   [0, 4], [1, 5], [2, 6], [3, 7], // Connecting edges
 ];
 
+const cubeVertexColours = [
+  'red', 'green', 'blue', 'yellow',
+  'cyan', 'magenta', 'orange', 'purple',
+];
+
 let angle = 0;
+let mouse = { x: 400, y: 400, inside: false };
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - rect.left;
+  mouse.y = e.clientY - rect.top;
+  mouse.inside = true;
+});
+canvas.addEventListener('mouseleave', () => { mouse.inside = false; });
 
 function initialise() {
   console.log('Camera initialized:', camera);
@@ -133,14 +148,78 @@ function draw() {
   context.stroke();
 
   // Draw vertices as dots
-  context.fillStyle = 'red';
-  projectedVertices.forEach(p => {
+  projectedVertices.forEach((p, i) => {
     if (p) {
+      context.fillStyle = cubeVertexColours[i % cubeVertexColours.length];
       context.beginPath();
       context.arc(p.x, p.y, 3, 0, Math.PI * 2);
       context.fill();
     }
   });
+
+  // Visualize screenToWorld and raycast
+  if (mouse.inside) {
+    // Draw mouse position
+    context.save();
+    context.beginPath();
+    context.arc(mouse.x, mouse.y, 6, 0, Math.PI * 2);
+    context.fillStyle = 'rgba(255,0,0,0.5)';
+    context.fill();
+    context.restore();
+
+    // Get world position at depth
+    const screenVec2 = { x: mouse.x, y: mouse.y };
+    const worldPos = camera.screenToWorld(screenVec2, screen, options.screenToWorldDepth);
+    if (worldPos) {
+      // Draw world position as text
+      context.save();
+      context.font = '16px monospace';
+      context.fillStyle = 'red';
+      context.fillText(
+        `World: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`,
+        mouse.x + 10, mouse.y - 10
+      );
+      context.restore();
+    }
+
+    // Raycast visualization
+    const ray = camera.raycast(screenVec2, screen);
+    if (ray) {
+      // Draw ray as a line with arrow
+      const origin = ray.origin;
+      const dir = ray.direction;
+
+      // Project origin and a point along the ray
+      const rayLen = 2; // length in world units
+      const end = {
+        x: origin.x + dir.x * rayLen,
+        y: origin.y + dir.y * rayLen,
+        z: origin.z + dir.z * rayLen,
+      };
+      const pOrigin = camera.project(origin, screen);
+      const pEnd = camera.project(end, screen);
+      if (pOrigin && pEnd) {
+        context.save();
+        context.strokeStyle = 'blue';
+        context.lineWidth = 2;
+        context.beginPath();
+        context.moveTo(pOrigin.x, pOrigin.y);
+        context.lineTo(pEnd.x, pEnd.y);
+        context.stroke();
+
+        // Draw arrowhead
+        const angle = Math.atan2(pEnd.y - pOrigin.y, pEnd.x - pOrigin.x);
+        const arrowLen = 14;
+        context.beginPath();
+        context.moveTo(pEnd.x, pEnd.y);
+        context.lineTo(pEnd.x - arrowLen * Math.cos(angle - 0.3), pEnd.y - arrowLen * Math.sin(angle - 0.3));
+        context.moveTo(pEnd.x, pEnd.y);
+        context.lineTo(pEnd.x - arrowLen * Math.cos(angle + 0.3), pEnd.y - arrowLen * Math.sin(angle + 0.3));
+        context.stroke();
+        context.restore();
+      }
+    }
+  }
 }
 
 initialise();

@@ -81,3 +81,24 @@ Set the camera's target position by setting `camera.target`.
 Get the camera's current "real" target position (after easing) by reading `camera.actualTarget`.
 
 Snap the camera's target position (without easing) by setting `camera.targetImmediate`.
+
+## Screen to world and raycasting
+
+To convert a screen position to a world position, we can use the `screenToWorld` method:
+
+```ts
+const worldPosition = camera.screenToWorld(
+  { x: screenX, y: screenY }, // Screen position
+  { x: window.innerWidth, y: window.innerHeight }, // Screen size
+  depth // Depth in world space (measured in world units)
+);
+```
+
+We can also calculate a ray from the camera through a screen position:
+
+```ts
+const ray = camera.raycast(
+  { x: screenX, y: screenY }, // Screen position
+  { x: window.innerWidth, y: window.innerHeight } // Screen size
+);
+```
