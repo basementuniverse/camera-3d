@@ -1,6 +1,6 @@
 {
   "name": "@basementuniverse/camera-3d",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A camera component for use in 3d browser games",
   "author": "Gordon Larrigan <gordonlarrigan@gmail.com> (https://gordonlarrigan.com)",
   "license": "MIT",
